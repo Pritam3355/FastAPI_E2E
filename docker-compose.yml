@@ -1,0 +1,45 @@
+services:
+  postgres:
+    image: postgres:15
+    platform: linux/amd64
+    container_name: postgres15
+    env_file:
+      - .env # Explicitly specify the env file
+    environment:
+      POSTGRES_DB: ${POSTGRESQL_DB}
+      POSTGRES_USER: ${POSTGRESQL_USER}
+      POSTGRES_PASSWORD: ${POSTGRESQL_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: no
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - docker-fastapi-postgresql
+      
+  api:
+    build: .
+    container_name: fastapi_app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRESQL_USER}:${POSTGRESQL_PASSWORD}@postgres:${POSTGRESQL_PORT}/${POSTGRESQL_DB}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/code/app
+    networks:
+      - docker-fastapi-postgresql
+
+volumes:
+  postgres_data:
+
+networks:
+  docker-fastapi-postgresql:
+    driver: bridge
